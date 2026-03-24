@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#e94560">
+  <link rel="manifest" href="/manifest.json">
+  <title>Deals Digest</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --card: #0f3460;
+      --accent: #e94560;
+      --green: #4ecca3;
+      --text: #eee;
+      --muted: #999;
+      --radius: 16px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* --- Auth screen --- */
+    #auth-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100dvh;
+      gap: 24px;
+      padding: 32px;
+      text-align: center;
+    }
+
+    #auth-screen h1 { font-size: 2rem; }
+    #auth-screen p { color: var(--muted); max-width: 280px; }
+
+    .btn-google {
+      background: #fff;
+      color: #333;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* --- App shell --- */
+    #app {
+      display: none;
+      height: 100dvh;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 20px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 { font-size: 1.3rem; }
+
+    .badge {
+      background: var(--accent);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    /* --- Card stack --- */
+    #card-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .card {
+      position: absolute;
+      width: calc(100% - 32px);
+      max-width: 400px;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      touch-action: pan-y;
+      cursor: grab;
+    }
+
+    .card.dragging { transition: none; cursor: grabbing; }
+    .card.gone-right { transform: translateX(150%) rotate(20deg); opacity: 0; }
+    .card.gone-left { transform: translateX(-150%) rotate(-20deg); opacity: 0; }
+
+    .card-emoji { font-size: 2.5rem; margin-bottom: 8px; }
+    .card-sender { color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+    .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+    .card-summary { color: #ccc; font-size: 0.95rem; line-height: 1.5; margin-bottom: 12px; }
+
+    .card-price {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .price-current {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .price-original {
+      font-size: 1rem;
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    .discount-badge {
+      background: var(--accent);
+      color: #fff;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .card-category {
+      display: inline-block;
+      background: rgba(255,255,255,0.1);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+
+    /* Swipe indicators */
+    .swipe-indicator {
+      position: absolute;
+      top: 20px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.15s;
+      pointer-events: none;
+    }
+
+    .swipe-like {
+      left: 20px;
+      background: var(--green);
+      color: #fff;
+    }
+
+    .swipe-nope {
+      right: 20px;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* --- Empty state --- */
+    #empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--muted);
+    }
+
+    #empty-state .emoji { font-size: 3rem; }
+
+    /* --- Bottom bar --- */
+    .bottom-bar {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      padding: 16px;
+    }
+
+    .action-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid;
+      background: transparent;
+      font-size: 1.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s;
+    }
+
+    .action-btn:active { transform: scale(0.9); }
+    .btn-nope { border-color: var(--accent); }
+    .btn-like { border-color: var(--green); }
+
+    /* --- Toast --- */
+    #toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease;
+      z-index: 100;
+    }
+
+    #toast.visible { transform: translateX(-50%) translateY(0); }
+
+    #toast button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* --- Loading --- */
+    .loader {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--surface);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* --- Nav tabs --- */
+    nav {
+      display: flex;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      background: var(--surface);
+    }
+
+    nav button {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    nav button.active { color: var(--accent); }
+    nav button span { font-size: 1.2rem; }
+
+    /* --- Tabs content --- */
+    .tab-content { display: none; flex: 1; overflow-y: auto; padding: 16px; }
+    .tab-content.active { display: block; }
+
+    /* Archive list */
+    .archive-group { margin-bottom: 20px; }
+    .archive-group h3 { color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
+
+    .archive-item {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .archive-item .info { flex: 1; }
+    .archive-item .sender { color: var(--muted); font-size: 0.8rem; }
+    .archive-item .title { font-size: 0.95rem; margin-top: 2px; }
+
+    .restore-btn {
+      background: none;
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    /* Preferences stats */
+    .stat-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .stat-bar {
+      flex: 1;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 4px;
+      transition: width 0.5s;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div style="font-size: 4rem;">🏷️</div>
+  <h1>Deals Digest</h1>
+  <p>סיכום חכם של כל המבצעים מהמייל — ישר לטלפון</p>
+  <button class="btn-google" onclick="login()">
+    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 019.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.97 23.97 0 000 24c0 3.77.87 7.35 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    התחבר עם Google
+  </button>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <header>
+    <h1>🏷️ Deals Digest</h1>
+    <span class="badge" id="count-badge">0</span>
+  </header>
+
+  <!-- Tab: Digest -->
+  <div id="tab-digest" class="tab-content active">
+    <div id="card-container">
+      <div id="loading" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+        <div class="loader"></div>
+        <span style="color:var(--muted)">טוען מבצעים...</span>
+      </div>
+      <div id="empty-state">
+        <div class="emoji">🎉</div>
+        <div>סיימת! אין עוד מבצעים להיום</div>
+      </div>
+    </div>
+    <div class="bottom-bar" id="bottom-bar" style="display:none">
+      <button class="action-btn btn-nope" onclick="swipeCard('left')" aria-label="לא מעניין">👎</button>
+      <button class="action-btn btn-like" onclick="swipeCard('right')" aria-label="מעניין">👍</button>
+    </div>
+  </div>
+
+  <!-- Tab: Archive -->
+  <div id="tab-archive" class="tab-content">
+    <h2 style="margin-bottom:16px">📦 ארכיון</h2>
+    <div id="archive-list"></div>
+  </div>
+
+  <!-- Tab: Preferences -->
+  <div id="tab-prefs" class="tab-content">
+    <h2 style="margin-bottom:16px">📊 מה למדתי עליך</h2>
+    <div id="prefs-list"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav>
+    <button class="active" onclick="switchTab('digest')"><span>🏷️</span>מבצעים</button>
+    <button onclick="switchTab('archive')"><span>📦</span>ארכיון</button>
+    <button onclick="switchTab('prefs')"><span>📊</span>העדפות</button>
+  </nav>
+</div>
+
+<!-- Undo toast -->
+<div id="toast">
+  <span id="toast-msg"></span>
+  <button onclick="undoSwipe()">בטל</button>
+</div>
+
+<script>
+// ====== CONFIG ======
+const WORKER_URL = 'https://deals-agent.workers.dev'; // Change to your worker URL
+
+// ====== STATE ======
+let cards = [];
+let currentIndex = 0;
+let lastSwipe = null; // { index, direction, card }
+let toastTimer = null;
+let archivedCards = []; // swiped left
+
+// ====== AUTH ======
+function login() {
+  window.location.href = WORKER_URL + '/auth/google';
+}
+
+function getToken() {
+  return localStorage.getItem('token');
+}
+
+function isLoggedIn() {
+  return !!getToken();
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(WORKER_URL + path, {
+    ...options,
+    headers: {
+      'Authorization': 'Bearer ' + getToken(),
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    showAuth();
+    throw new Error('Unauthorized');
+  }
+  return res.json();
+}
+
+// ====== INIT ======
+function init() {
+  if (isLoggedIn()) {
+    showApp();
+    loadDigest();
+  } else {
+    showAuth();
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+}
+
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+// ====== DIGEST ======
+async function loadDigest() {
+  try {
+    const data = await api('/digest');
+    cards = data.cards || [];
+    currentIndex = 0;
+    archivedCards = [];
+    document.getElementById('count-badge').textContent = cards.length;
+    document.getElementById('loading').style.display = 'none';
+
+    if (cards.length === 0) {
+      showEmpty();
+    } else {
+      renderCards();
+      document.getElementById('bottom-bar').style.display = 'flex';
+    }
+  } catch (e) {
+    console.error('Failed to load digest:', e);
+    document.getElementById('loading').innerHTML =
+      '<span style="color:var(--accent)">שגיאה בטעינת המבצעים</span>';
+  }
+}
+
+function renderCards() {
+  const container = document.getElementById('card-container');
+  // Remove old cards
+  container.querySelectorAll('.card').forEach(el => el.remove());
+
+  // Render next 3 cards (stack effect)
+  for (let i = Math.min(currentIndex + 2, cards.length - 1); i >= currentIndex; i--) {
+    const card = cards[i];
+    const el = createCardElement(card, i);
+    const depth = i - currentIndex;
+    el.style.transform = `scale(${1 - depth * 0.05}) translateY(${depth * 10}px)`;
+    el.style.zIndex = String(100 - depth);
+    container.appendChild(el);
+
+    if (i === currentIndex) {
+      setupSwipeGesture(el, i);
+    }
+  }
+}
+
+function createCardElement(card, index) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.id = 'card-' + index;
+
+  const deal = card.deals[0] || {};
+  const priceHtml = deal.price
+    ? `<div class="card-price">
+        <span class="price-current">₪${deal.price}</span>
+        ${deal.original_price ? `<span class="price-original">₪${deal.original_price}</span>` : ''}
+        ${deal.discount_pct ? `<span class="discount-badge">-${deal.discount_pct}%</span>` : ''}
+       </div>`
+    : '';
+
+  const extraDeals = card.deals.length > 1
+    ? `<div style="color:var(--muted);font-size:0.85rem;margin-top:8px">+${card.deals.length - 1} מבצעים נוספים</div>`
+    : '';
+
+  el.innerHTML = `
+    <div class="swipe-indicator swipe-like">👍 מעניין</div>
+    <div class="swipe-indicator swipe-nope">👎 לא</div>
+    <div class="card-emoji">${deal.emoji || '🏷️'}</div>
+    <div class="card-sender">${escapeHtml(card.sender)}</div>
+    <div class="card-title">${escapeHtml(deal.product || card.subject)}</div>
+    <div class="card-summary">${escapeHtml(deal.summary || '')}</div>
+    ${priceHtml}
+    ${extraDeals}
+    <div class="card-category">${escapeHtml(card.category)}</div>
+  `;
+
+  return el;
+}
+
+// ====== SWIPE GESTURE ======
+function setupSwipeGesture(el, index) {
+  let startX = 0, startY = 0, currentX = 0, isDragging = false;
+
+  function onStart(e) {
+    isDragging = true;
+    el.classList.add('dragging');
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    const point = e.touches ? e.touches[0] : e;
+    currentX = point.clientX - startX;
+    const rotate = currentX * 0.1;
+    el.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+
+    // Show indicators
+    const likeEl = el.querySelector('.swipe-like');
+    const nopeEl = el.querySelector('.swipe-nope');
+    if (currentX > 50) {
+      likeEl.style.opacity = Math.min((currentX - 50) / 100, 1);
+      nopeEl.style.opacity = 0;
+    } else if (currentX < -50) {
+      nopeEl.style.opacity = Math.min((-currentX - 50) / 100, 1);
+      likeEl.style.opacity = 0;
+    } else {
+      likeEl.style.opacity = 0;
+      nopeEl.style.opacity = 0;
+    }
+  }
+
+  function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    el.classList.remove('dragging');
+
+    if (currentX > 100) {
+      completeSwipe(index, 'right');
+    } else if (currentX < -100) {
+      completeSwipe(index, 'left');
+    } else {
+      // Snap back
+      el.style.transform = '';
+      el.querySelector('.swipe-like').style.opacity = 0;
+      el.querySelector('.swipe-nope').style.opacity = 0;
+    }
+    currentX = 0;
+  }
+
+  el.addEventListener('mousedown', onStart);
+  el.addEventListener('touchstart', onStart, { passive: true });
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: true });
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchend', onEnd);
+}
+
+function completeSwipe(index, direction) {
+  const el = document.getElementById('card-' + index);
+  if (!el) return;
+
+  el.classList.add(direction === 'right' ? 'gone-right' : 'gone-left');
+
+  const card = cards[index];
+  const liked = direction === 'right';
+
+  // Save last swipe for undo
+  lastSwipe = { index, direction, card };
+
+  // Track archived (swiped left)
+  if (!liked) {
+    archivedCards.push(card);
+  }
+
+  // Send feedback to server
+  api('/feedback', {
+    method: 'POST',
+    body: JSON.stringify({
+      message_id: card.message_id,
+      sender: card.sender,
+      subject: card.subject,
+      category: card.category,
+      liked,
+    }),
+  }).catch(e => console.error('Feedback error:', e));
+
+  // Show toast
+  showToast(liked ? '👍 אהבת!' : '👎 דילגת');
+
+  // Advance
+  currentIndex++;
+  updateBadge();
+
+  setTimeout(() => {
+    if (currentIndex < cards.length) {
+      renderCards();
+    } else {
+      showEmpty();
+    }
+  }, 300);
+}
+
+function swipeCard(direction) {
+  if (currentIndex >= cards.length) return;
+  completeSwipe(currentIndex, direction);
+}
+
+// ====== UNDO ======
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  toast.classList.add('visible');
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+    lastSwipe = null;
+  }, 5000);
+}
+
+function undoSwipe() {
+  if (!lastSwipe) return;
+
+  const toast = document.getElementById('toast');
+  toast.classList.remove('visible');
+  clearTimeout(toastTimer);
+
+  // Remove from archive if it was swiped left
+  if (lastSwipe.direction === 'left') {
+    archivedCards.pop();
+  }
+
+  currentIndex = lastSwipe.index;
+  lastSwipe = null;
+  updateBadge();
+
+  // Re-render
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('bottom-bar').style.display = 'flex';
+  renderCards();
+}
+
+// ====== TABS ======
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  if (tab === 'archive') renderArchive();
+  if (tab === 'prefs') loadPreferences();
+}
+
+// ====== ARCHIVE ======
+function renderArchive() {
+  const container = document.getElementById('archive-list');
+
+  if (archivedCards.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">אין פריטים בארכיון</div>';
+    return;
+  }
+
+  // Group by category
+  const groups = {};
+  archivedCards.forEach(card => {
+    const cat = card.category || 'אחר';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(card);
+  });
+
+  let html = '';
+  for (const [cat, items] of Object.entries(groups)) {
+    html += `<div class="archive-group"><h3>${escapeHtml(cat)} (${items.length})</h3>`;
+    items.forEach((card, i) => {
+      const deal = card.deals[0] || {};
+      html += `
+        <div class="archive-item">
+          <div class="info">
+            <div class="sender">${escapeHtml(card.sender)}</div>
+            <div class="title">${escapeHtml(deal.product || card.subject)}</div>
+          </div>
+          <button class="restore-btn" onclick="restoreCard(${archivedCards.indexOf(card)})">שחזר</button>
+        </div>`;
+    });
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function restoreCard(archiveIndex) {
+  const card = archivedCards.splice(archiveIndex, 1)[0];
+  if (!card) return;
+  // Add back to cards and re-render
+  cards.splice(currentIndex, 0, card);
+  updateBadge();
+  renderArchive();
+  // Switch to digest tab
+  switchTabProgrammatic('digest');
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('bottom-bar').style.display = 'flex';
+  renderCards();
+}
+
+function switchTabProgrammatic(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('nav button')[tab === 'digest' ? 0 : tab === 'archive' ? 1 : 2].classList.add('active');
+}
+
+// ====== PREFERENCES ======
+async function loadPreferences() {
+  try {
+    const data = await api('/preferences');
+    const container = document.getElementById('prefs-list');
+
+    if (!data.stats || data.stats.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">עוד לא צברת מספיק נתונים</div>';
+      return;
+    }
+
+    let html = '';
+    data.stats.forEach(stat => {
+      const pct = stat.total > 0 ? Math.round((stat.likes / stat.total) * 100) : 0;
+      html += `
+        <div class="stat-row">
+          <div style="min-width:120px;font-size:0.9rem">${escapeHtml(stat.sender)}</div>
+          <div style="font-size:0.8rem;color:var(--muted);min-width:60px">👍${stat.likes} 👎${stat.dislikes}</div>
+          <div class="stat-bar"><div class="stat-bar-fill" style="width:${pct}%"></div></div>
+          <div style="font-size:0.8rem;min-width:35px">${pct}%</div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+  } catch (e) {
+    console.error('Failed to load preferences:', e);
+  }
+}
+
+// ====== HELPERS ======
+function showEmpty() {
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('bottom-bar').style.display = 'none';
+}
+
+function updateBadge() {
+  const remaining = cards.length - currentIndex;
+  document.getElementById('count-badge').textContent = remaining;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
