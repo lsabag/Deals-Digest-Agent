@@ -11,7 +11,7 @@ crons = [
 [[d1_databases]]
 binding = "DB"
 database_name = "deals-agent-db"
-database_id = "YOUR_D1_DATABASE_ID"
+database_id = "7552528f-afbf-4638-a1b4-bf377d38127e"
 
-# [vars]
-# WORKER_URL = "https://deals-agent.YOUR-SUBDOMAIN.workers.dev"
+[vars]
+WORKER_URL = "https://deals-agent.lsabag.workers.dev"

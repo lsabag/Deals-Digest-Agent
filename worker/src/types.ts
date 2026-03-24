@@ -2,9 +2,11 @@ export interface Env {
   DB: D1Database;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
-  GEMINI_API_KEY: string;
+  GEMINI_API_KEY?: string;
+  GROQ_API_KEY: string;
   JWT_SECRET: string;
   WORKER_URL?: string;
+  PWA_URL?: string;
 }
 
 export interface User {
@@ -34,6 +36,7 @@ export interface ClassifiedEmail {
   deals: Deal[];
   spam_confidence: number;
   has_attachment: boolean;
+  image: string | null;
 }
 
 export interface DigestCard {
@@ -44,6 +47,7 @@ export interface DigestCard {
   deals: Deal[];
   score: number;
   type: 'simple' | 'complex' | 'invoice' | 'spam_suspicious';
+  image: string | null;
 }
 
 export interface FeedbackEntry {

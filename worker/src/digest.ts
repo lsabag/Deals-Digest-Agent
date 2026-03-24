@@ -74,6 +74,7 @@ function toDigestCard(
     deals: email.deals,
     score: Math.round(score * 10) / 10,
     type: email.type,
+    image: email.image,
   };
 }
 

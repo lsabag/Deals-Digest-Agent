@@ -140,6 +140,40 @@ function decodeBase64Url(data: string): string {
   return new TextDecoder().decode(bytes);
 }
 
+// Extract the best hero image from email HTML
+// Skips tracking pixels, icons, and tiny images
+export function extractHeroImage(html: string): string | null {
+  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let match;
+  const candidates: string[] = [];
+
+  while ((match = imgRegex.exec(html)) !== null) {
+    const src = match[1];
+    const tag = match[0].toLowerCase();
+
+    // Skip tracking pixels and tiny images
+    if (src.includes('track') || src.includes('pixel') || src.includes('beacon')
+      || src.includes('open.') || src.includes('click.')
+      || src.includes('1x1') || src.includes('spacer')) continue;
+
+    // Skip data URIs and very short URLs
+    if (src.startsWith('data:') || src.length < 20) continue;
+
+    // Skip explicit 1x1 or tiny dimensions in the tag
+    if (/width=["']?[01]/.test(tag) || /height=["']?[01]/.test(tag)) continue;
+
+    // Prefer https images
+    if (src.startsWith('https://')) {
+      candidates.push(src);
+    } else if (src.startsWith('http://')) {
+      candidates.push(src);
+    }
+  }
+
+  // Return first good candidate (promotional emails put hero image first/early)
+  return candidates[0] || null;
+}
+
 export function extractSenderDomain(from: string): string {
   const match = from.match(/@([a-zA-Z0-9.-]+)/);
   return match ? match[1].toLowerCase() : from.toLowerCase();

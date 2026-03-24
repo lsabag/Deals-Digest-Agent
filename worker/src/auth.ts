@@ -147,14 +147,8 @@ export async function handleAuthCallback(request: Request, env: Env): Promise<Re
   );
 
   // Redirect to PWA with token
-  return new Response(`
-    <!DOCTYPE html>
-    <html><head><meta charset="utf-8"><title>Redirecting...</title></head>
-    <body><script>
-      localStorage.setItem('token', '${jwt}');
-      window.location.href = '/';
-    </script></body></html>
-  `, { headers: { 'Content-Type': 'text/html' } });
+  const pwaUrl = env.PWA_URL || 'https://deals-digest.pages.dev';
+  return Response.redirect(`${pwaUrl}?token=${jwt}`, 302);
 }
 
 export async function handleAuthMe(user: User): Promise<Response> {
